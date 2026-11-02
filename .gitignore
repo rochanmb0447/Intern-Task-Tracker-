@@ -14,3 +14,4 @@ server/*.db-wal
 *.log
 .DS_Store
 Thumbs.db
+server/index.sqlite-backup.js

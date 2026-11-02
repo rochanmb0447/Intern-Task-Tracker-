@@ -1,34 +1,48 @@
 
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
-const { DatabaseSync } = require('node:sqlite');
+const { Pool } = require('pg');
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Connect to the SQLite database.
-// The tasks.db file will be created automatically.
-const db = new DatabaseSync('./tasks.db');
+// Connect to Neon PostgreSQL.
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL is missing. Check your server/.env file.');
+}
 
-// Create the tasks table if it doesn't already exist.
-db.exec(`
-  CREATE TABLE IF NOT EXISTS tasks (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL CHECK(length(title) <= 100),
-    description TEXT NOT NULL DEFAULT '',
-    domain TEXT NOT NULL DEFAULT '',
-    priority TEXT NOT NULL DEFAULT 'Medium'
-      CHECK(priority IN ('Low', 'Medium', 'High')),
-    due_date TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'Pending'
-      CHECK(status IN ('Pending', 'In Progress', 'Completed')),
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
+
+// Create the tasks table.
+async function initializeDatabase() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tasks (
+      id SERIAL PRIMARY KEY,
+      title VARCHAR(100) NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      domain TEXT NOT NULL DEFAULT '',
+      priority TEXT NOT NULL DEFAULT 'Medium'
+        CHECK(priority IN ('Low', 'Medium', 'High')),
+      due_date DATE NOT NULL,
+      status TEXT NOT NULL DEFAULT 'Pending'
+        CHECK(status IN ('Pending', 'In Progress', 'Completed')),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  console.log('PostgreSQL database connected and initialized.');
+}
 
 const validPriorities = ['Low', 'Medium', 'High'];
 const validStatuses = ['Pending', 'In Progress', 'Completed'];
@@ -89,13 +103,13 @@ function validateTask(data) {
 }
 
 // GET: Retrieve all tasks.
-app.get('/api/tasks', (req, res) => {
+app.get('/api/tasks', async (req, res) => {
   try {
-    const tasks = db
-      .prepare('SELECT * FROM tasks ORDER BY id DESC')
-      .all();
+    const result = await pool.query(
+      'SELECT * FROM tasks ORDER BY id DESC'
+    );
 
-    res.json(tasks);
+    res.json(result.rows);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Could not retrieve tasks.' });
@@ -103,7 +117,7 @@ app.get('/api/tasks', (req, res) => {
 });
 
 // POST: Create a new task.
-app.post('/api/tasks', (req, res) => {
+app.post('/api/tasks', async (req, res) => {
   try {
     const error = validateTask(req.body);
 
@@ -113,30 +127,30 @@ app.post('/api/tasks', (req, res) => {
 
     const task = req.body;
 
-    const result = db.prepare(`
-      INSERT INTO tasks
+    const result = await pool.query(
+      `INSERT INTO tasks
         (title, description, domain, priority, due_date, status)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(
-      task.title.trim(),
-      (task.description ?? '').trim(),
-      (task.domain ?? '').trim(),
-      task.priority ?? 'Medium',
-      task.due_date,
-      task.status ?? 'Pending'
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        task.title.trim(),
+        (task.description ?? '').trim(),
+        (task.domain ?? '').trim(),
+        task.priority ?? 'Medium',
+        task.due_date,
+        task.status ?? 'Pending'
+      ]
     );
 
-    const createdTask = db
-      .prepare('SELECT * FROM tasks WHERE id = ?')
-      .get(Number(result.lastInsertRowid));
-
-    res.status(201).json(createdTask);
+    res.status(201).json(result.rows[0]);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Could not create task.' });
   }
 });
-app.put('/api/tasks/:id', (req, res) => {
+
+// PUT: Update an existing task.
+app.put('/api/tasks/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
 
@@ -152,30 +166,28 @@ app.put('/api/tasks/:id', (req, res) => {
 
     const task = req.body;
 
-    const result = db.prepare(`
-      UPDATE tasks
-      SET title = ?, description = ?, domain = ?,
-          priority = ?, due_date = ?, status = ?
-      WHERE id = ?
-    `).run(
-      task.title.trim(),
-      (task.description ?? '').trim(),
-      (task.domain ?? '').trim(),
-      task.priority ?? 'Medium',
-      task.due_date,
-      task.status ?? 'Pending',
-      id
+    const result = await pool.query(
+      `UPDATE tasks
+       SET title = $1, description = $2, domain = $3,
+           priority = $4, due_date = $5, status = $6
+       WHERE id = $7
+       RETURNING *`,
+      [
+        task.title.trim(),
+        (task.description ?? '').trim(),
+        (task.domain ?? '').trim(),
+        task.priority ?? 'Medium',
+        task.due_date,
+        task.status ?? 'Pending',
+        id
+      ]
     );
 
-    if (result.changes === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Task not found.' });
     }
 
-    const updatedTask = db
-      .prepare('SELECT * FROM tasks WHERE id = ?')
-      .get(id);
-
-    res.json(updatedTask);
+    res.json(result.rows[0]);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Could not update task.' });
@@ -183,7 +195,7 @@ app.put('/api/tasks/:id', (req, res) => {
 });
 
 // DELETE: Remove a task.
-app.delete('/api/tasks/:id', (req, res) => {
+app.delete('/api/tasks/:id', async (req, res) => {
   try {
     const id = Number(req.params.id);
 
@@ -191,11 +203,12 @@ app.delete('/api/tasks/:id', (req, res) => {
       return res.status(400).json({ error: 'Invalid task ID.' });
     }
 
-    const result = db
-      .prepare('DELETE FROM tasks WHERE id = ?')
-      .run(id);
+    const result = await pool.query(
+      'DELETE FROM tasks WHERE id = $1',
+      [id]
+    );
 
-    if (result.changes === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Task not found.' });
     }
 
@@ -221,7 +234,20 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error.' });
 });
 
-// Start the backend server.
-app.listen(PORT, () => {
-  console.log(`Backend running at http://localhost:${PORT}`);
+// Initialize database before starting the server.
+initializeDatabase()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Backend running on port ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error('Database initialization failed:', error);
+    process.exit(1);
+  });
+
+// Gracefully close database connections.
+process.on('SIGTERM', async () => {
+  await pool.end();
+  process.exit(0);
 });
