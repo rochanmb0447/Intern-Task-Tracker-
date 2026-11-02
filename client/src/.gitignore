@@ -1,0 +1,24 @@
+
+# Dependencies
+client/node_modules/
+server/node_modules/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Build output
+client/dist/
+
+# SQLite database files
+server/*.db
+server/*.db-shm
+server/*.db-wal
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

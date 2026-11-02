@@ -1,0 +1,273 @@
+
+.app {
+  min-height: 100vh;
+  background: #f4f6fb;
+  color: #1f2937;
+}
+
+.header {
+  background: #ffffff;
+  padding: 24px 6%;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.header p {
+  margin-bottom: 0;
+  color: #6b7280;
+}
+
+.main-content {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.dashboard h2,
+.tasks-section h2 {
+  margin-top: 0;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.summary-card {
+  background: #ffffff;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.summary-card h3 {
+  font-size: 15px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.summary-card p {
+  font-size: 30px;
+  font-weight: bold;
+  margin-bottom: 0;
+}
+
+.tasks-section {
+  margin-top: 32px;
+  background: #ffffff;
+  padding: 24px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+@media (max-width: 700px) {
+  .summary-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .main-content {
+    padding: 24px 16px;
+  }
+
+  .header h1 {
+    font-size: 23px;
+  }
+}
+
+@media (max-width: 380px) {
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.task-form-section {
+  margin-top: 24px;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.task-form-section h2 {
+  margin-top: 0;
+}
+
+.task-form-section form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+}
+
+.form-group label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #1f2937;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: 2px solid #93c5fd;
+  border-color: #2563eb;
+}
+
+.form-row {
+  display: flex;
+  gap: 18px;
+}
+
+.task-form-section button {
+  align-self: flex-start;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 7px;
+  background: #2563eb;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.task-form-section button:hover {
+  background: #1d4ed8;
+}
+
+@media (max-width: 500px) {
+  .form-row {
+    flex-direction: column;
+  }
+
+  .task-form-section {
+    padding: 16px;
+  }
+}
+
+/* Individual task cards */
+.task-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 18px;
+  margin-bottom: 14px;
+}
+
+.task-card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.task-card-heading h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.task-card p {
+  color: #6b7280;
+  margin: 12px 0;
+}
+
+.task-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.task-card-heading span {
+  padding: 5px 9px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+@media (max-width: 500px) {
+  .task-card-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+.task-filters {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.task-filters input,
+.task-filters select {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #1f2937;
+}
+
+@media (max-width: 600px) {
+  .task-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+.task-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.task-actions button,
+.task-form-section button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 7px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.task-actions button:last-child {
+  background: #dc2626;
+}
+
+.task-actions button:hover {
+  opacity: 0.85;
+}
+
+.task-form-section form > button + button {
+  margin-left: 10px;
+  background: #6b7280;
+}
+
+@media (max-width: 500px) {
+  .task-actions button {
+    flex: 1;
+  }
+}
