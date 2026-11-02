@@ -29,7 +29,7 @@ function App() {
         setError('')
 
         const response = await fetch(
-          'http://localhost:3000/api/tasks'
+          'https://intern-task-tracker-api.onrender.com'
         )
 
         if (!response.ok) {
@@ -85,7 +85,7 @@ function App() {
       if (editingId !== null) {
         // PUT: Update an existing task
         const response = await fetch(
-          `http://localhost:3000/api/tasks/${editingId}`,
+          `https://intern-task-tracker-api.onrender.com/api/tasks/${editingId}`,
           {
             method: 'PUT',
             headers: {
@@ -112,7 +112,7 @@ function App() {
       } else {
         // POST: Create a new task
         const response = await fetch(
-          'http://localhost:3000/api/tasks',
+          'https://intern-task-tracker-api.onrender.com/api/tasks',
           {
             method: 'POST',
             headers: {
@@ -176,7 +176,7 @@ function App() {
       setError('')
 
       const response = await fetch(
-        `http://localhost:3000/api/tasks/${id}`,
+        `https://intern-task-tracker-api.onrender.com/api/tasks/${id}`,
         {
           method: 'DELETE',
         }
