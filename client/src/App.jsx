@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 import './App.css'
 
+const API_URL = 'https://intern-task-tracker-api.onrender.com/api/tasks'
+
 const emptyForm = {
   title: '',
   description: '',
@@ -21,16 +23,14 @@ function App() {
   const [priorityFilter, setPriorityFilter] = useState('All')
   const [editingId, setEditingId] = useState(null)
 
-  // GET: Fetch tasks from the backend
+  // GET: Fetch tasks
   useEffect(() => {
     async function fetchTasks() {
       try {
         setLoading(true)
         setError('')
 
-        const response = await fetch(
-          'https://intern-task-tracker-api.onrender.com'
-        )
+        const response = await fetch(API_URL)
 
         if (!response.ok) {
           throw new Error('Failed to fetch tasks.')
@@ -48,7 +48,7 @@ function App() {
     fetchTasks()
   }, [])
 
-  // Handle form input changes
+  // Handle form changes
   function handleChange(event) {
     const { name, value } = event.target
 
@@ -58,7 +58,7 @@ function App() {
     }))
   }
 
-  // POST: Create task and PUT: Update task
+  // POST: Create task / PUT: Update task
   async function handleSubmit(event) {
     event.preventDefault()
 
@@ -82,61 +82,41 @@ function App() {
     try {
       setError('')
 
-      if (editingId !== null) {
-        // PUT: Update an existing task
-        const response = await fetch(
-          `https://intern-task-tracker-api.onrender.com/api/tasks/${editingId}`,
-          {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(taskData),
-          }
-        )
+      const isEditing = editingId !== null
 
-        const result = await response.json()
-
-        if (!response.ok) {
-          throw new Error(
-            result.error || 'Failed to update task.'
-          )
+      const response = await fetch(
+        isEditing ? `${API_URL}/${editingId}` : API_URL,
+        {
+          method: isEditing ? 'PUT' : 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(taskData),
         }
+      )
 
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ||
+          (isEditing ? 'Failed to update task.' : 'Failed to create task.')
+        )
+      }
+
+      if (isEditing) {
         setTasks((previousTasks) =>
           previousTasks.map((task) =>
             task.id === editingId ? result : task
           )
         )
-
       } else {
-        // POST: Create a new task
-        const response = await fetch(
-          'https://intern-task-tracker-api.onrender.com/api/tasks',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(taskData),
-          }
-        )
-
-        const result = await response.json()
-
-        if (!response.ok) {
-          throw new Error(
-            result.error || 'Failed to create task.'
-          )
-        }
-
         setTasks((previousTasks) => [
-          ...previousTasks,
           result,
+          ...previousTasks,
         ])
       }
 
-      // Reset form after successful operation
       setFormData(emptyForm)
       setEditingId(null)
 
@@ -145,7 +125,7 @@ function App() {
     }
   }
 
-  // Load selected task into the form for editing
+  // Load task into form for editing
   function handleEdit(task) {
     setFormData({
       title: task.title,
@@ -164,7 +144,7 @@ function App() {
     })
   }
 
-  // DELETE: Remove task from the backend
+  // DELETE: Delete task
   async function handleDelete(id) {
     const confirmed = window.confirm(
       'Are you sure you want to delete this task?'
@@ -175,22 +155,22 @@ function App() {
     try {
       setError('')
 
-      const response = await fetch(
-        `https://intern-task-tracker-api.onrender.com/api/tasks/${id}`,
-        {
-          method: 'DELETE',
-        }
-      )
+      const response = await fetch(`${API_URL}/${id}`, {
+        method: 'DELETE',
+      })
 
       if (!response.ok) {
-        const result = await response.json()
+        let result = {}
 
-        throw new Error(
-          result.error || 'Failed to delete task.'
-        )
+        try {
+          result = await response.json()
+        } catch {
+          // Ignore an empty error response
+        }
+
+        throw new Error(result.error || 'Failed to delete task.')
       }
 
-      // Update frontend only after successful deletion
       setTasks((previousTasks) =>
         previousTasks.filter((task) => task.id !== id)
       )
@@ -211,7 +191,7 @@ function App() {
     setFormData(emptyForm)
   }
 
-  // Search and filter tasks
+  // Search and filter
   const filteredTasks = tasks.filter((task) => {
     const matchesSearch = task.title
       .toLowerCase()
@@ -225,11 +205,7 @@ function App() {
       priorityFilter === 'All' ||
       task.priority === priorityFilter
 
-    return (
-      matchesSearch &&
-      matchesStatus &&
-      matchesPriority
-    )
+    return matchesSearch && matchesStatus && matchesPriority
   })
 
   // Dashboard calculations
@@ -250,319 +226,371 @@ function App() {
   return (
     <div className="app">
 
-      {/* Header */}
-      <header className="header">
-        <h1>Intern Task Tracker</h1>
-        <p>Organize your work. Track your progress.</p>
-      </header>
+      {/* SIDEBAR */}
+      <aside className="sidebar">
 
-      <main className="main-content">
+        <div className="brand">
+          <span className="brand-icon">✓</span>
+          <span>TaskFlow</span>
+        </div>
 
-        {/* Dashboard */}
-        <section className="dashboard">
-          <h2>Dashboard</h2>
+        <p className="sidebar-label">WORKSPACE</p>
 
-          <div className="summary-cards">
+        <a className="nav-link active" href="#dashboard">
+          ▦ Dashboard
+        </a>
 
-            <article className="summary-card">
-              <h3>Total Tasks</h3>
-              <p>{totalTasks}</p>
-            </article>
+        <a className="nav-link" href="#create-task">
+          ＋ Create Task
+        </a>
 
-            <article className="summary-card">
-              <h3>Pending</h3>
-              <p>{pendingTasks}</p>
-            </article>
+        <a className="nav-link" href="#my-tasks">
+          ☷ My Tasks
+        </a>
 
-            <article className="summary-card">
-              <h3>In Progress</h3>
-              <p>{inProgressTasks}</p>
-            </article>
-
-            <article className="summary-card">
-              <h3>Completed</h3>
-              <p>{completedTasks}</p>
-            </article>
-
+        <div className="sidebar-bottom">
+          <div className="profile-icon">R</div>
+          <div>
+            <strong>My Workspace</strong>
+            <small>Personal task manager</small>
           </div>
-        </section>
+        </div>
 
-        {/* Create / Edit Task Form */}
-        <section className="task-form-section">
+      </aside>
 
-          <h2>
-            {editingId !== null
-              ? 'Edit Task'
-              : 'Create a Task'}
-          </h2>
+      {/* MAIN CONTENT */}
+      <div className="app-content">
 
-          <form onSubmit={handleSubmit}>
+        {/* HEADER */}
+        <header className="topbar">
+          <div>
+            <h1>Intern Task Tracker</h1>
+            <p>Organize your work. Track your progress.</p>
+          </div>
 
-            <div className="form-group">
-              <label htmlFor="title">
-                Task Title *
-              </label>
+          <span className="workspace-badge">
+            ● Workspace
+          </span>
+        </header>
 
-              <input
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                maxLength={100}
-                placeholder="e.g. Learn React basics"
-                required
-              />
+        <main className="main-content">
+
+          {/* WELCOME */}
+          <section className="welcome-section" id="dashboard">
+            <div>
+              <p className="eyebrow">YOUR WORKSPACE</p>
+              <h2>Welcome back! 👋</h2>
+              <p>Here's an overview of your tasks and progress.</p>
+            </div>
+          </section>
+
+          {/* DASHBOARD */}
+          <section className="dashboard">
+
+            <div className="section-heading">
+              <div>
+                <h2>Overview</h2>
+                <span>All your tasks at a glance</span>
+              </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="description">
-                Description
-              </label>
+            <div className="summary-cards">
 
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                placeholder="Describe your task"
-                rows={3}
-              />
+              <article className="summary-card total-card">
+                <div className="stat-top">
+                  <span>Total Tasks</span>
+                  <span className="stat-icon">▦</span>
+                </div>
+                <p>{totalTasks}</p>
+                <small>Tasks created</small>
+              </article>
+
+              <article className="summary-card pending-card">
+                <div className="stat-top">
+                  <span>Pending</span>
+                  <span className="stat-icon">◷</span>
+                </div>
+                <p>{pendingTasks}</p>
+                <small>Waiting to start</small>
+              </article>
+
+              <article className="summary-card progress-card">
+                <div className="stat-top">
+                  <span>In Progress</span>
+                  <span className="stat-icon">↗</span>
+                </div>
+                <p>{inProgressTasks}</p>
+                <small>Currently working</small>
+              </article>
+
+              <article className="summary-card completed-card">
+                <div className="stat-top">
+                  <span>Completed</span>
+                  <span className="stat-icon">✓</span>
+                </div>
+                <p>{completedTasks}</p>
+                <small>Successfully finished</small>
+              </article>
+
             </div>
+          </section>
 
-            <div className="form-group">
-              <label htmlFor="domain">
-                Domain
-              </label>
+          {/* CREATE / EDIT TASK */}
+          <section className="task-form-section" id="create-task">
 
-              <input
-                id="domain"
-                name="domain"
-                value={formData.domain}
-                onChange={handleChange}
-                placeholder="e.g. Frontend"
-              />
-            </div>
-
-            <div className="form-row">
-
-              <div className="form-group">
-                <label htmlFor="priority">
-                  Priority
-                </label>
-
-                <select
-                  id="priority"
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleChange}
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                </select>
+            <div className="section-heading">
+              <div>
+                <h2>
+                  {editingId !== null ? 'Edit Task' : 'Create New Task'}
+                </h2>
+                <span>Fill in the details to manage your work.</span>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="due_date">
-                  Due Date *
-                </label>
+              {editingId !== null && (
+                <span className="editing-label">Editing task</span>
+              )}
+            </div>
 
+            <form onSubmit={handleSubmit}>
+
+              <div className="form-group">
+                <label htmlFor="title">Task Title *</label>
                 <input
-                  id="due_date"
-                  name="due_date"
-                  type="date"
-                  value={formData.due_date}
+                  id="title"
+                  name="title"
+                  value={formData.title}
                   onChange={handleChange}
+                  maxLength={100}
+                  placeholder="e.g. Complete React project"
                   required
                 />
               </div>
 
+              <div className="form-group">
+                <label htmlFor="description">Description</label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  placeholder="What needs to be done?"
+                  rows={3}
+                />
+              </div>
+
+              <div className="form-row">
+
+                <div className="form-group">
+                  <label htmlFor="domain">Domain</label>
+                  <input
+                    id="domain"
+                    name="domain"
+                    value={formData.domain}
+                    onChange={handleChange}
+                    placeholder="e.g. Frontend"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="priority">Priority</label>
+                  <select
+                    id="priority"
+                    name="priority"
+                    value={formData.priority}
+                    onChange={handleChange}
+                  >
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="due_date">Due Date *</label>
+                  <input
+                    id="due_date"
+                    name="due_date"
+                    type="date"
+                    value={formData.due_date}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+
+              </div>
+
+              <div className="form-row form-bottom-row">
+
+                <div className="form-group">
+                  <label htmlFor="status">Status</label>
+                  <select
+                    id="status"
+                    name="status"
+                    value={formData.status}
+                    onChange={handleChange}
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+
+                <div className="form-buttons">
+                  <button type="submit" className="primary-button">
+                    {editingId !== null ? 'Save Changes' : '+ Create Task'}
+                  </button>
+
+                  {editingId !== null && (
+                    <button
+                      type="button"
+                      className="cancel-button"
+                      onClick={cancelEdit}
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+
+              </div>
+
+            </form>
+          </section>
+
+          {/* TASK LIST */}
+          <section className="tasks-section" id="my-tasks">
+
+            <div className="section-heading">
+              <div>
+                <h2>My Tasks</h2>
+                <span>Manage and track your work.</span>
+              </div>
+
+              <span className="task-count">
+                {filteredTasks.length} tasks
+              </span>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="status">
-                Status
-              </label>
+            {/* SEARCH AND FILTERS */}
+            <div className="task-filters">
+
+              <input
+                type="search"
+                placeholder="⌕  Search tasks by title..."
+                aria-label="Search tasks by title"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
 
               <select
-                id="status"
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
+                aria-label="Filter by status"
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.target.value)}
               >
+                <option value="All">All Statuses</option>
                 <option value="Pending">Pending</option>
-                <option value="In Progress">
-                  In Progress
-                </option>
-                <option value="Completed">
-                  Completed
-                </option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
               </select>
-            </div>
 
-            <button type="submit">
-              {editingId !== null
-                ? 'Save Changes'
-                : 'Create Task'}
-            </button>
-
-            {editingId !== null && (
-              <button
-                type="button"
-                onClick={cancelEdit}
+              <select
+                aria-label="Filter by priority"
+                value={priorityFilter}
+                onChange={(event) => setPriorityFilter(event.target.value)}
               >
-                Cancel Edit
-              </button>
-            )}
+                <option value="All">All Priorities</option>
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+              </select>
 
-          </form>
-        </section>
-
-        {/* My Tasks */}
-        <section className="tasks-section">
-
-          <div className="tasks-heading">
-            <div>
-              <h2>My Tasks</h2>
-              <p>Manage and track your tasks.</p>
             </div>
 
-            <span className="task-count">
-              {filteredTasks.length} shown
-            </span>
-          </div>
+            {/* TASK CARDS */}
+            <div className="task-list">
 
-          {/* Search and Filters */}
-          <div className="task-filters">
+              {loading ? (
+                <p className="empty-state">Loading your tasks...</p>
 
-            <input
-              type="search"
-              placeholder="Search tasks by title..."
-              aria-label="Search tasks by title"
-              value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
-            />
+              ) : error ? (
+                <p className="error-state" role="alert">{error}</p>
 
-            <select
-              aria-label="Filter by status"
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value)
-              }
-            >
-              <option value="All">All Statuses</option>
-              <option value="Pending">Pending</option>
-              <option value="In Progress">
-                In Progress
-              </option>
-              <option value="Completed">Completed</option>
-            </select>
+              ) : filteredTasks.length === 0 ? (
+                <div className="empty-state">
+                  <span className="empty-icon">☷</span>
+                  <h3>No tasks found</h3>
+                  <p>Create a task or adjust your search and filters.</p>
+                </div>
 
-            <select
-              aria-label="Filter by priority"
-              value={priorityFilter}
-              onChange={(event) =>
-                setPriorityFilter(event.target.value)
-              }
-            >
-              <option value="All">All Priorities</option>
-              <option value="Low">Low</option>
-              <option value="Medium">Medium</option>
-              <option value="High">High</option>
-            </select>
+              ) : (
+                filteredTasks.map((task) => (
 
-          </div>
+                  <article className="task-card" key={task.id}>
 
-          {/* Task List */}
-          <div className="task-list">
+                    <div className="task-card-heading">
+                      <div>
+                        <span className="task-domain">
+                          {task.domain || 'GENERAL'}
+                        </span>
+                        <h3>{task.title}</h3>
+                      </div>
 
-            {loading ? (
-              <p>Loading tasks...</p>
+                      <span
+                        className={`status status-${task.status
+                          .toLowerCase()
+                          .replace(' ', '-')}`}
+                      >
+                        {task.status}
+                      </span>
+                    </div>
 
-            ) : error ? (
-              <p role="alert">{error}</p>
+                    <p className="task-description">
+                      {task.description || 'No description provided.'}
+                    </p>
 
-            ) : filteredTasks.length === 0 ? (
-              <p>
-                No tasks found. Try changing your search
-                or filters.
-              </p>
+                    <div className="task-details">
 
-            ) : (
-              filteredTasks.map((task) => (
+                      <span className={`priority priority-${task.priority.toLowerCase()}`}>
+                        ● {task.priority} Priority
+                      </span>
 
-                <article
-                  className="task-card"
-                  key={task.id}
-                >
+                      <span>◷ Due: {task.due_date}</span>
 
-                  <div className="task-card-heading">
+                    </div>
 
-                    <h3>{task.title}</h3>
+                    <div className="task-actions">
 
-                    <span
-                      className={`status status-${task.status
-                        .toLowerCase()
-                        .replace(' ', '-')}`}
-                    >
-                      {task.status}
-                    </span>
+                      <button
+                        type="button"
+                        className="edit-button"
+                        onClick={() => handleEdit(task)}
+                      >
+                        ✎ Edit
+                      </button>
 
-                  </div>
+                      <button
+                        type="button"
+                        className="delete-button"
+                        onClick={() => handleDelete(task.id)}
+                      >
+                        Delete
+                      </button>
 
-                  <p className="task-description">
-                    {task.description ||
-                      'No description provided.'}
-                  </p>
+                    </div>
 
-                  <div className="task-details">
+                  </article>
 
-                    <span>
-                      Domain: {task.domain || 'Not specified'}
-                    </span>
+                ))
+              )}
 
-                    <span
-                      className={`priority priority-${task.priority.toLowerCase()}`}
-                    >
-                      {task.priority} Priority
-                    </span>
+            </div>
+          </section>
 
-                    <span>
-                      Due: {task.due_date}
-                    </span>
+          <footer className="footer">
+            Intern Task Tracker <span>•</span> Built to organize your workflow
+          </footer>
 
-                  </div>
-
-                  <div className="task-actions">
-
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(task)}
-                    >
-                      Edit
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(task.id)}
-                    >
-                      Delete
-                    </button>
-
-                  </div>
-
-                </article>
-
-              ))
-            )}
-
-          </div>
-
-        </section>
-
-      </main>
+        </main>
+      </div>
     </div>
   )
 }
